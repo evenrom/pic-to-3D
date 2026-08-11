@@ -3,21 +3,26 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #0F172A;
+  --surface: rgba(30, 41, 59, 0.7);
+  --accent: #6366F1;
+  --accent-hover: #4F46E5;
+  --text-primary: #F8FAFC;
+  --text-muted: #94A3B8;
 }
 
 body {
-  color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text-primary);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+@layer components {
+  .glass-card {
+    @apply backdrop-blur-md rounded-xl;
+    background-color: var(--surface);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+  }
 }
 
 @layer utilities {

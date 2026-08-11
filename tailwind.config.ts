@@ -10,7 +10,11 @@ const config: Config = {
     extend: {
       colors: {
         background: "var(--background)",
-        foreground: "var(--foreground)",
+        foreground: "var(--text-primary)",
+        surface: "rgba(30, 41, 59, 0.7)",
+        accent: "var(--accent)",
+        "accent-hover": "var(--accent-hover)",
+        "text-muted": "var(--text-muted)",
       },
     },
   },
