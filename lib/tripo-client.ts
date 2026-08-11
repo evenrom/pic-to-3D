@@ -14,64 +14,66 @@ export interface TripoTaskResponse {
                 type: string;
                 url: string;
             };
+            pbr_model?: {
+                type: string;
+                url: string;
+            };
         };
     };
 }
 
-export async function createTask(imagesBase64: string[]): Promise<{ taskId: string; status: string }> {
-    // Tripo3D API V2 image_to_model usually accepts a file object with type and file_token or just the base64 string
-    // Given standard usage without knowing specific API doc, we will send an array of base64 images under a 'file' parameter or similar.
-    // If it's a single image, usually: type: "image_to_model", file: { type: "jpg", file_token: "..." }
+export class TripoError extends Error {
+    public status: number;
+    constructor(message: string, status: number) {
+        super(message);
+        this.status = status;
+        this.name = 'TripoError';
+    }
+}
 
-    // As we can only hit the task endpoint, we will pass base64 directly or if the API doesn't support it, we will fail. But the user spec mentioned base64.
-    // Actually, typical payload for base64:
-    // {
-    //   "type": "image_to_model",
-    //   "file": {
-    //     "type": "png", // or jpg
-    //     "data": "base64string..." // without data:image/png;base64,
-    //   }
-    // }
+function normalizeState(state: string | undefined): 'queued' | 'running' | 'success' | 'failed' {
+    if (!state) return 'failed';
+    const s = state.toLowerCase();
+    if (['queued', 'running', 'success', 'failed'].includes(s)) {
+        return s as 'queued' | 'running' | 'success' | 'failed';
+    }
+    return 'failed';
+}
 
-    // For 1-3 images, multi-view:
-    // {
-    //   "type": "multiview_to_model",
-    //   "files": [
-    //      { "type": "png", "data": "..." }
-    //   ]
-    // }
-
-    // We will assume "image_to_model" can take multiple files or we will map them accordingly.
-    // Let's formulate a robust payload that will work for Tripo3d.
-
+export async function createTask(images: { data: string, type: string }[]): Promise<{ taskId: string; status: 'queued' | 'running' | 'success' | 'failed' }> {
     let payload: Record<string, unknown>;
-    if (imagesBase64.length === 1) {
+
+    if (images.length === 1) {
         payload = {
             type: "image_to_model",
             file: {
-                type: "png",
-                data: imagesBase64[0]
+                type: images[0].type,
+                data: images[0].data
             }
         };
     } else {
-        // According to common Tripo3D docs for multiview (up to 3 images)
         payload = {
             type: "multiview_to_model",
-            files: imagesBase64.map(b64 => ({
-                type: "png",
-                data: b64
+            files: images.map(img => ({
+                type: img.type,
+                data: img.data
             }))
         };
     }
 
-    const response = await fetch("https://api.tripo3d.ai/v2/openapi/task", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.TRIPO_API_KEY}`,
-        },
-        body: JSON.stringify(payload),
-    });
+    let response: Response;
+    try {
+        response = await fetch("https://api.tripo3d.ai/v2/openapi/task", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${process.env.TRIPO_API_KEY}`,
+            },
+            body: JSON.stringify(payload),
+        });
+    } catch (networkError: unknown) {
+        throw new TripoError(`Tripo3D API Network Error: ${networkError instanceof Error ? networkError.message : "Unknown"}`, 502);
+    }
 
     if (!response.ok) {
         let errorText = response.statusText;
@@ -79,27 +81,33 @@ export async function createTask(imagesBase64: string[]): Promise<{ taskId: stri
             const errJson = await response.json();
             errorText = errJson.message || JSON.stringify(errJson);
         } catch { /* ignore */ }
-        throw new Error(`Tripo3D API Error: ${errorText}`);
+        throw new TripoError(`Tripo3D API Error: ${errorText}`, response.status);
     }
 
     const json = await response.json();
     if (json.code !== 0) {
-        throw new Error(`Tripo3D API Error: ${json.message || "Unknown error"}`);
+        // According to Tripo API, 0 is success
+        throw new TripoError(`Tripo3D API Error: ${json.message || "Unknown error"}`, 400); // 400 or other mapped based on code
     }
 
     return {
         taskId: json.data.task_id,
-        status: json.data.status || "queued",
+        status: normalizeState(json.data.status)
     };
 }
 
 export async function getTask(taskId: string) {
-    const response = await fetch(`https://api.tripo3d.ai/v2/openapi/task/${taskId}`, {
-        method: "GET",
-        headers: {
-            Authorization: `Bearer ${process.env.TRIPO_API_KEY}`,
-        },
-    });
+    let response: Response;
+    try {
+        response = await fetch(`https://api.tripo3d.ai/v2/openapi/task/${taskId}`, {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${process.env.TRIPO_API_KEY}`,
+            },
+        });
+    } catch (networkError: unknown) {
+        throw new TripoError(`Tripo3D API Network Error: ${networkError instanceof Error ? networkError.message : "Unknown"}`, 502);
+    }
 
     if (!response.ok) {
         let errorText = response.statusText;
@@ -107,30 +115,28 @@ export async function getTask(taskId: string) {
             const errJson = await response.json();
             errorText = errJson.message || JSON.stringify(errJson);
         } catch { /* ignore */ }
-        throw new Error(`Tripo3D API Error: ${errorText}`);
+        throw new TripoError(`Tripo3D API Error: ${errorText}`, response.status);
     }
 
     const json = await response.json();
     if (json.code !== 0) {
-        throw new Error(`Tripo3D API Error: ${json.message || "Unknown error"}`);
+        throw new TripoError(`Tripo3D API Error: ${json.message || "Unknown error"}`, 400);
     }
 
     const data = json.data;
-    let modelUrl = "";
-    let outputFormat = "obj"; // default
+    let modelUrl: string | null = null;
+    let outputFormat: string | null = null;
 
     if (data.status === "success" && data.result) {
-        // Depending on what Tripo returns, it could be under result.model.url or result.base_model.url
         const model = data.result.model || data.result.base_model || data.result.pbr_model;
         if (model) {
             modelUrl = model.url;
-            // Extract format from url or type
-            outputFormat = modelUrl.split(".").pop()?.split("?")[0] || "obj";
+            outputFormat = model.url.split(".").pop()?.split("?")[0] || null;
         }
     }
 
     return {
-        status: data.status,
+        status: normalizeState(data.status),
         progress: data.progress,
         modelUrl,
         outputFormat
