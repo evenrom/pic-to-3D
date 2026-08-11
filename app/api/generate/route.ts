@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createTask } from "@/lib/tripo-client";
+import { createTask, TripoError } from "@/lib/tripo-client";
 
 export async function POST(req: NextRequest) {
     try {
         const formData = await req.formData();
-        const files = formData.getAll("file") as File[]; // Check for 'file' or 'files' depending on client
+        const files = formData.getAll("file") as File[];
 
         if (!files || files.length === 0) {
             return NextResponse.json(
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const base64Images: string[] = [];
+        const images: { data: string; type: string }[] = [];
         const MAX_SIZE = 10 * 1024 * 1024; // 10MB
         const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
@@ -39,22 +39,31 @@ export async function POST(req: NextRequest) {
                 );
             }
 
+            // Extract type from MIME, e.g., 'image/jpeg' -> 'jpeg' -> 'jpg'
+            let type = file.type.split("/")[1];
+            if (type === "jpeg") {
+                type = "jpg";
+            }
+
             const arrayBuffer = await file.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
-            // Convert to base64
-            const base64String = buffer.toString("base64");
-            base64Images.push(base64String);
+            const data = buffer.toString("base64");
+
+            images.push({ data, type });
         }
 
-        // Call Tripo API proxy
-        const result = await createTask(base64Images);
+        const result = await createTask(images);
 
         return NextResponse.json(result, { status: 200 });
     } catch (error: unknown) {
         console.error("Error in /api/generate:", error);
+
+        const status = error instanceof TripoError ? error.status : 500;
+        const message = error instanceof Error ? error.message : "Internal Server Error";
+
         return NextResponse.json(
-            { error: error instanceof Error ? error.message : "Internal Server Error" },
-            { status: 500 }
+            { error: message },
+            { status }
         );
     }
 }
