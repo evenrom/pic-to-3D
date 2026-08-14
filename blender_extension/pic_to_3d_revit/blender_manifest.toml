@@ -1,0 +1,24 @@
+schema_version = "1.0.0"
+
+id = "pic_to_3d_revit"
+version = "0.2.1"
+name = "pic to 3D - Prepare for Revit"
+tagline = "Prepare generated furniture meshes for Revit OBJ import"
+maintainer = "evenr"
+type = "add-on"
+
+blender_version_min = "5.2.0"
+
+license = [
+  "SPDX:GPL-3.0-or-later",
+]
+
+[permissions]
+files = "Export prepared OBJ and material files"
+
+[build]
+paths_exclude_pattern = [
+  "__pycache__/",
+  "/tests/",
+  "*.zip",
+]

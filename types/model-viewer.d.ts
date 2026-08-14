@@ -15,10 +15,18 @@ declare module "@google/model-viewer" {
   export default ModelViewer;
 }
 
-declare global {
+declare module "react" {
   namespace JSX {
     interface IntrinsicElements {
-      "model-viewer": any;
+      "model-viewer": React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
+        src?: string;
+        alt?: string;
+        "auto-rotate"?: boolean;
+        "camera-controls"?: boolean;
+        exposure?: string;
+        "shadow-intensity"?: string;
+        "camera-orbit"?: string;
+      };
     }
   }
 }

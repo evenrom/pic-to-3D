@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 export interface SelectedImage {
   id: string;
@@ -8,92 +8,80 @@ export interface SelectedImage {
   src: string;
 }
 
-interface DropZoneProps {
-  onChange?: (files: SelectedImage[]) => void;
+type DropZoneProps = {
+  onChange: (files: SelectedImage[]) => void;
+  onError?: (message: string | null) => void;
   maxFiles?: number;
   currentCount?: number;
-}
+};
 
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_SIZE_BYTES = 20 * 1024 * 1024;
 
-const DropZone: React.FC<DropZoneProps> = ({ onChange, maxFiles = 3, currentCount = 0 }) => {
+export default function DropZone({ onChange, onError, maxFiles = 1, currentCount = 0 }: DropZoneProps) {
   const [isDragActive, setIsDragActive] = useState(false);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const addFiles = useCallback(
-    (files: FileList | null) => {
-      if (!files) return;
+  const addFiles = useCallback((fileList: FileList | null) => {
+    const available = Math.max(0, maxFiles - currentCount);
+    const files = Array.from(fileList ?? []).slice(0, available || maxFiles);
+    if (!files.length) return;
 
-      const next: SelectedImage[] = [];
-      for (const file of Array.from(files)) {
-        if (next.length + currentCount >= maxFiles) break;
-        if (!ACCEPTED_TYPES.includes(file.type)) continue;
-        if (file.size > MAX_SIZE_BYTES) continue;
+    const file = files[0];
+    if (!ACCEPTED_TYPES.has(file.type)) {
+      onError?.("Use a JPG, PNG, or WebP image.");
+      return;
+    }
+    if (file.size > MAX_SIZE_BYTES) {
+      onError?.("The image must be smaller than 20 MB.");
+      return;
+    }
 
-        const id =
-          typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-            ? crypto.randomUUID()
-            : `${Date.now()}-${Math.random()}`;
-        const src = URL.createObjectURL(file);
-        next.push({ id, file, src });
-      }
-
-      if (next.length === 0) return;
-      onChange?.(next);
-    },
-    [currentCount, maxFiles, onChange]
-  );
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragActive(false);
-    addFiles(e.dataTransfer.files);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragActive(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragActive(false);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    addFiles(e.target.files);
-    if (inputRef.current) inputRef.current.value = "";
-  };
+    onError?.(null);
+    onChange([{
+      id: crypto.randomUUID(),
+      file,
+      src: URL.createObjectURL(file),
+    }]);
+  }, [currentCount, maxFiles, onChange, onError]);
 
   return (
-    <div
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      className={`w-full p-6 rounded-lg border-2 ${isDragActive ? "border-accent" : "border-white/10"} transition-colors bg-[rgba(255,255,255,0.02)] cursor-pointer`}
-      onClick={() => inputRef.current?.click()}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") inputRef.current?.click();
-      }}
-    >
+    <>
       <input
         ref={inputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
-        multiple
-        className="hidden"
-        onChange={handleInputChange}
+        aria-label="Choose a furniture reference image"
+        className="sr-only"
+        onChange={(event) => {
+          addFiles(event.target.files);
+          event.target.value = "";
+        }}
       />
-
-      <div className="flex flex-col items-center justify-center gap-2 text-center">
-        <p className="text-sm text-text-muted">Drag & drop 1–3 images here, or click to browse</p>
-        <p className="text-xs text-text-muted">Accepted: .jpg .png .webp — Max 10MB each</p>
+      <div
+      className={`drop-zone ${isDragActive ? "drop-zone-active" : ""}`}
+      onClick={() => inputRef.current?.click()}
+      onDrop={(event) => {
+        event.preventDefault();
+        setIsDragActive(false);
+        addFiles(event.dataTransfer.files);
+      }}
+      onDragOver={(event) => {
+        event.preventDefault();
+        setIsDragActive(true);
+      }}
+      onDragLeave={() => setIsDragActive(false)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") inputRef.current?.click();
+      }}
+      role="button"
+      tabIndex={0}
+      >
+        <div className="upload-mark" aria-hidden="true">+</div>
+        <strong>Drop a photo here</strong>
+        <span>or click to choose a file</span>
+        <small>JPG, PNG, or WebP · maximum 20 MB</small>
       </div>
-    </div>
+    </>
   );
-};
-
-export default DropZone;
+}

@@ -3,30 +3,76 @@
 @tailwind utilities;
 
 :root {
-  --background: #0F172A;
-  --surface: rgba(30, 41, 59, 0.7);
-  --accent: #6366F1;
-  --accent-hover: #4F46E5;
-  --text-primary: #F8FAFC;
-  --text-muted: #94A3B8;
+  --background: #070a12;
+  --surface: rgba(18, 23, 39, 0.82);
+  --accent: #7c6cff;
+  --accent-hover: #9184ff;
+  --text-primary: #f6f7fb;
+  --text-muted: #9aa4b8;
 }
 
+* { box-sizing: border-box; }
+
 body {
-  background: var(--background);
+  margin: 0;
+  background:
+    radial-gradient(circle at 16% 0%, rgba(91, 75, 192, 0.22), transparent 34rem),
+    radial-gradient(circle at 92% 18%, rgba(21, 160, 156, 0.1), transparent 30rem),
+    var(--background);
   color: var(--text-primary);
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+button, [role="button"] { outline-offset: 3px; }
 
 @layer components {
   .glass-card {
-    @apply backdrop-blur-md rounded-xl;
-    background-color: var(--surface);
-    border: 1px solid rgba(255, 255, 255, 0.10);
+    @apply rounded-3xl border border-white/10;
+    background: linear-gradient(145deg, rgba(23, 29, 48, 0.91), rgba(13, 17, 30, 0.88));
+    box-shadow: 0 22px 70px rgba(0, 0, 0, 0.24);
+    backdrop-filter: blur(18px);
   }
-}
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .mode-switch { @apply grid gap-3 md:grid-cols-2; }
+  .mode-card { @apply relative rounded-2xl border px-5 py-4; }
+  .mode-card strong { @apply block text-base; }
+  .mode-card p { @apply mt-1 text-sm text-text-muted; }
+  .mode-card-active { @apply border-violet-400/40 bg-violet-400/10; }
+  .mode-card-disabled { @apply border-white/10 bg-white/[0.025] opacity-60; }
+  .mode-kicker { @apply mb-2 block text-[10px] font-bold tracking-[0.18em] text-violet-300; }
+
+  .eyebrow { @apply mb-2 text-[11px] font-bold tracking-[0.2em] text-violet-300; }
+  .section-title { @apply text-xl font-semibold tracking-tight sm:text-2xl; }
+  .section-copy { @apply mt-2 max-w-2xl text-sm leading-6 text-text-muted; }
+
+  .drop-zone {
+    @apply flex min-h-52 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-white/20 bg-white/[0.025] px-5 text-center transition;
   }
+  .drop-zone:hover, .drop-zone-active { @apply border-violet-400 bg-violet-400/10; }
+  .drop-zone strong { @apply mt-3 text-base; }
+  .drop-zone span { @apply mt-1 text-sm text-text-muted; }
+  .drop-zone small { @apply mt-4 text-xs text-text-muted; }
+  .upload-mark { @apply grid h-12 w-12 place-items-center rounded-2xl bg-violet-400/15 text-3xl font-light text-violet-200; }
+
+  .primary-button {
+    @apply inline-flex min-h-12 items-center justify-center rounded-xl bg-accent px-5 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35;
+  }
+  .secondary-button { @apply min-h-12 rounded-xl bg-white/[0.07] px-5 text-sm font-semibold transition hover:bg-white/[0.12]; }
+  .error-box { @apply rounded-xl border border-red-400/25 bg-red-400/10 px-4 py-3 text-sm text-red-100; }
+
+  .status-pill { @apply inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-semibold; }
+  .status-pill i { @apply h-2 w-2 rounded-full bg-slate-400; }
+  .status-success i { @apply bg-emerald-400; }
+  .status-error i { @apply bg-red-400; }
+  .status-uploading i, .status-polling i, .status-preparing i { @apply animate-pulse bg-amber-300; }
+  .credit-pill { @apply rounded-full bg-emerald-400/10 px-3 py-2 text-xs font-semibold text-emerald-300; }
+
+  .viewer-shell { @apply flex h-full flex-col gap-3; }
+  .viewer-stage { @apply relative min-h-[430px] flex-1 overflow-hidden rounded-2xl border border-white/10 bg-black/20; }
+  .viewer-empty { @apply absolute inset-0 flex flex-col items-center justify-center px-8 text-center; }
+  .viewer-empty strong { @apply mt-3 text-base; }
+  .viewer-empty p { @apply mt-2 max-w-sm text-sm leading-6 text-text-muted; }
+  .cube-mark { @apply text-6xl font-extralight text-violet-300/70; }
+  .spinner { @apply h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-violet-300; }
+  .viewer-button { @apply rounded-lg bg-white/[0.06] px-4 py-2 text-xs font-semibold transition hover:bg-white/[0.11] disabled:cursor-not-allowed disabled:opacity-30; }
 }

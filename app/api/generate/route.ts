@@ -1,69 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createTask, TripoError } from "@/lib/tripo-client";
+import { createImageTask, TripoError } from "@/lib/tripo-client";
 
-export async function POST(req: NextRequest) {
-    try {
-        const formData = await req.formData();
-        const files = formData.getAll("file") as File[];
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-        if (!files || files.length === 0) {
-            return NextResponse.json(
-                { error: "No files uploaded. Please upload 1 to 3 images." },
-                { status: 400 }
-            );
-        }
+export const runtime = "nodejs";
 
-        if (files.length > 3) {
-            return NextResponse.json(
-                { error: "Maximum of 3 files allowed." },
-                { status: 400 }
-            );
-        }
+export async function POST(request: NextRequest) {
+  try {
+    const formData = await request.formData();
+    const value = formData.get("file");
 
-        const images: { data: string; type: string }[] = [];
-        const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-        const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-
-        for (const file of files) {
-            if (file.size > MAX_SIZE) {
-                return NextResponse.json(
-                    { error: `File ${file.name} exceeds the 10MB limit.` },
-                    { status: 400 }
-                );
-            }
-
-            if (!ALLOWED_TYPES.includes(file.type)) {
-                return NextResponse.json(
-                    { error: `File type ${file.type} is not allowed. Only JPG, PNG, and WEBP are supported.` },
-                    { status: 400 }
-                );
-            }
-
-            // Extract type from MIME, e.g., 'image/jpeg' -> 'jpeg' -> 'jpg'
-            let type = file.type.split("/")[1];
-            if (type === "jpeg") {
-                type = "jpg";
-            }
-
-            const arrayBuffer = await file.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            const data = buffer.toString("base64");
-
-            images.push({ data, type });
-        }
-
-        const result = await createTask(images);
-
-        return NextResponse.json(result, { status: 200 });
-    } catch (error: unknown) {
-        console.error("Error in /api/generate:", error);
-
-        const status = error instanceof TripoError ? error.status : 500;
-        const message = error instanceof Error ? error.message : "Internal Server Error";
-
-        return NextResponse.json(
-            { error: message },
-            { status }
-        );
+    if (!(value instanceof File)) {
+      return NextResponse.json({ error: "Choose one reference image first." }, { status: 400 });
     }
+    if (!ALLOWED_IMAGE_TYPES.has(value.type)) {
+      return NextResponse.json(
+        { error: "Use a JPG, PNG, or WebP image." },
+        { status: 400 },
+      );
+    }
+    if (value.size === 0 || value.size > MAX_IMAGE_BYTES) {
+      return NextResponse.json(
+        { error: "The image must be smaller than 20 MB." },
+        { status: 400 },
+      );
+    }
+
+    return NextResponse.json(await createImageTask(value));
+  } catch (error) {
+    const status = error instanceof TripoError ? error.status : 500;
+    const message = error instanceof Error ? error.message : "Could not start generation.";
+    if (error instanceof TripoError && error.traceId) {
+      console.error("Tripo generation failed", { traceId: error.traceId, status });
+    }
+    return NextResponse.json({ error: message }, { status });
+  }
 }

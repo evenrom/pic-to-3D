@@ -17,13 +17,17 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ progress, statusLabel, isErro
         <span className={`text-sm font-medium ${isError ? 'text-red-400' : 'text-foreground'}`}>{pct}%</span>
       </div>
 
-      <div className="w-full h-3 bg-[rgba(255,255,255,0.04)] rounded-full overflow-hidden">
+      <div
+        className="w-full h-3 bg-[rgba(255,255,255,0.04)] rounded-full overflow-hidden"
+        role="progressbar"
+        aria-label={statusLabel}
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
         <div
           className={`h-full rounded-full transition-all duration-500 ease-out ${isError ? 'bg-red-500' : 'bg-accent'}`}
           style={{ width: `${pct}%` }}
-          aria-valuenow={pct}
-          aria-valuemin={0}
-          aria-valuemax={100}
         />
       </div>
     </div>

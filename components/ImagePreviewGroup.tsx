@@ -24,10 +24,10 @@ const ImagePreviewGroup: React.FC<ImagePreviewGroupProps> = ({ items, onRemove }
   if (!items || items.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 gap-3">
       {items.map((it) => (
         <div key={it.id} className="relative bg-[rgba(255,255,255,0.02)] rounded-md overflow-hidden border border-white/5">
-          <Image src={it.src} alt={it.name || "preview"} width={80} height={80} unoptimized className="object-cover w-full h-24" />
+          <Image src={it.src} alt={it.name || "Selected reference"} width={640} height={360} unoptimized className="h-52 w-full object-contain bg-black/20" />
           <button
             aria-label={`Remove ${it.name || "image"}`}
             className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/60"

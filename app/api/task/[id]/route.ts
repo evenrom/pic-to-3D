@@ -1,32 +1,25 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getTask, TripoError } from "@/lib/tripo-client";
 
+export const runtime = "nodejs";
+
 export async function GET(
-    req: NextRequest,
-    { params }: { params: { id: string } }
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
 ) {
-    try {
-        const { id } = params;
+  const { id } = await params;
+  if (!id) {
+    return NextResponse.json({ error: "Task ID is required." }, { status: 400 });
+  }
 
-        if (!id) {
-            return NextResponse.json(
-                { error: "Task ID is required" },
-                { status: 400 }
-            );
-        }
-
-        const taskResult = await getTask(id);
-
-        return NextResponse.json(taskResult, { status: 200 });
-    } catch (error: unknown) {
-        console.error(`Error in /api/task/${params.id}:`, error);
-
-        const status = error instanceof TripoError ? error.status : 500;
-        const message = error instanceof Error ? error.message : "Internal Server Error";
-
-        return NextResponse.json(
-            { error: message },
-            { status }
-        );
+  try {
+    return NextResponse.json(await getTask(id));
+  } catch (error) {
+    const status = error instanceof TripoError ? error.status : 500;
+    const message = error instanceof Error ? error.message : "Could not check task status.";
+    if (error instanceof TripoError && error.traceId) {
+      console.error("Tripo task query failed", { traceId: error.traceId, status });
     }
+    return NextResponse.json({ error: message }, { status });
+  }
 }

@@ -9,6 +9,10 @@
 # testing
 /coverage
 
+# Python / Blender generated files
+__pycache__/
+*.py[cod]
+
 # next.js
 /.next/
 /out/
